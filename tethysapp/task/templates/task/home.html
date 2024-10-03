@@ -1,41 +1,139 @@
 {% extends "task/base.html" %}
-{% comment %} {% block content %}
-  <h1>Home</h1>
-  {{block.super}}
-  <a href="/apps/task/about">About</a>
-{% endblock %} {% endcomment %}
 
 {% block content %}
   <h1>Home</h1>
   <div id="result">
-    <table>
-      <tr>
-        <th>Task ID</th>
-        <th>Task Name</th>
-      </tr>
+    <table border="1" style="border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Task ID</th>
+          <th>Task Name</th>
+          <th>Update</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody id="task-list">
+      </tbody>
     </table>
   </div>
+  <div>
+    <form id="task-form" method='post' action='/apps/task/api/tasks/'>
+      {% csrf_token %}
+      <input type="text" id="id-new-task" placeholder="Task ID">
+      <input type="text" id="new-task" placeholder="Task Name">
+      <button type="button" id="add-task-btn">Add Task</button>
+    </form>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
   <script>
-    $.ajax({
-      url: '/apps/task/api/tasks',
-      type: 'GET',
-      success: function(response){
-        console.log('Kết quả trả về:')
-        console.log(response);
-        let keys = Object.keys(response);
+    function getTasks() {
+      $.ajax({
+        url: '/apps/task/api/tasks/',
+        method: 'GET',
+        success: function(response) {
+          let taskList = $('#task-list');
+          taskList.empty();
+          let keys = Object.keys(response);
           keys.forEach(key => {
-            $('#result table').append(`
-            <table>
+            taskList.append(`
               <tr>
                 <td>${key}</td>
+                <td>${key}</td>
                 <td>${response[key]}</td>
+                <td><button class="update-btn" data-id="${key}">Update</button></td>
+                <td><button class="delete-btn" data-id="${key}" data-name="${response[key]}">Delete</button></td>
               </tr>
-            </table>
             `);
           });
+
+          $('.update-btn').on('click', function() {
+            let taskId = $(this).data('id');
+            let newTaskName = prompt('Cập nhật tên task:');
+            if (newTaskName) {
+              updateTask(taskId, newTaskName);
+            }
+          });
+
+          $('.delete-btn').on('click', function() {
+            let taskId = $(this).data('id');
+            let taskName = $(this).data('name');
+            if (confirm('Bạn có chắc xóa task?')) {
+              deleteTask(taskId, taskName);
+            }
+          });
+        },
+        error: function(error) {
+          alert('Không thể lấy danh sách tác vụ');
+          console.error('Error fetching tasks:', error);
+        }
+      });
+    }
+
+    $('#add-task-btn').on('click', function() {
+      const taskId = $('#id-new-task').val();
+      const taskName = $('#new-task').val();
+      if (taskId && taskName) {
+        $.ajax({
+          url: '/apps/task/api/tasks/',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ [taskId]: taskName }),
+          success: function(response) {
+            alert('Đã thêm task thành công');
+            $('#id-new-task').val('');
+            $('#new-task').val('');
+            console.log('Added task:', JSON.stringify({ [taskId]: taskName }));
+            getTasks();
+          },
+          error: function(error) {
+            alert('Có lỗi khi thêm task');
+            console.error('Error adding task:', error);
+          }
+        });
+      } else {
+        alert('Nhập cả TaskID và TaskName');
       }
     });
+
+    function updateTask(taskId, taskName) {
+      $.ajax({
+        url: '/apps/task/api/tasks/',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ [taskId]: taskName }),
+        success: function(response) {
+          alert('Cập nhật thành công');
+          console.log(JSON.stringify({ [taskId]: taskName }));
+          getTasks();
+        },
+        error: function(error) {
+          alert('Cập nhật không thành công');
+          console.error('Error updating task:', error);
+        }
+      });
+    }
+
+    function deleteTask(taskId, taskName) {
+      $.ajax({
+        url: '/apps/task/api/tasks/',
+        method: 'DELETE',
+        contentType: 'application/json',
+        data: JSON.stringify({ [taskId]: taskName }),
+        success: function(response) {
+          alert('Xóa thành công');
+          console.log('Deleted task:',JSON.stringify({ [taskId]: taskName }));
+          getTasks();
+        },
+        error: function(error) {
+          alert('Xóa không thành công');
+          console.error('Error deleting task:', error);
+        }
+      });
+    }
+
+    getTasks();
   </script>
 {% endblock %}
-
